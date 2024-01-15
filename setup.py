@@ -8,9 +8,9 @@ with open("requirements.txt", "r", encoding="utf-8") as fh:
 
 setup(
     name = 'big-map-archive-api-client',
-    version = '1.1.0',
-    author = 'Francois Liot',
-    author_email = 'francois.liot@epfl.ch',
+    version = '1.2.0',
+    author = 'BIG MAP Archive team',
+    author_email = 'big-map-archive@materialscloud.org',
     license = 'BIG-MAP Archive License',
     description = 'A CLI app to interact with BIG-MAP Archive data repositories',
     long_description = long_description,

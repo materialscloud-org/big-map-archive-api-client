@@ -1,6 +1,8 @@
 # big-map-archive-api-client
 
 > This is a command line client to interact with BIG-MAP Archive data repositories.
+> Use version 1.1.0 to connect to the BIG-MAP Archive version with invenioRDM v9.
+> Use version 1.1.2 to connect to the BIG-MAP Archive version with invenioRDM v12.
 
 ## Table of contents
 
@@ -44,9 +46,12 @@ pip install wheel
 ```
 
 4. Install the `big-map-archive-api-client` package along with its dependencies in the virtual environment:
+Use version 1.1.0 to connect to the BIG-MAP Archive version with invenioRDM v9.
+Use version 1.1.2 to connect to the BIG-MAP Archive version with invenioRDM v12.
 
 ```bash
-pip install big-map-archive-api-client
+pip install big-map-archive-api-client==1.1.0
+pip install big-map-archive-api-client==1.2.0
 ```
 
 5. [Optional] Once installed, check that the executable file associated with `bma` is indeed located in the virtual environment:

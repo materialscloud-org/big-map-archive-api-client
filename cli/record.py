@@ -1,21 +1,31 @@
-import click
-from pathlib import Path
 import os
+import warnings
+
+import click
 import requests
 
-
-from cli.root import cmd_root
 from big_map_archive_api_client.client.client_config import ClientConfig
-from big_map_archive_api_client.utils import (get_data_files_in_upload_dir,
+from big_map_archive_api_client.utils import (create_directory,
                                               export_to_json_file,
-                                              create_directory)
+                                              get_data_files_in_upload_dir)
+from cli.root import cmd_root
 
 
 @cmd_root.group('record')
-def cmd_record():
+@click.option(
+    '--ignore',
+    '-W',
+    is_flag=True,
+    help='Ignore warnings.'
+)
+def cmd_record(ignore):
     """
     Manage records on a BIG-MAP Archive.
     """
+    # ignore warnings
+    if ignore:
+        warnings.filterwarnings('ignore')
+
 
 @cmd_record.command('create')
 @click.option(
@@ -41,10 +51,17 @@ def cmd_record():
     is_flag=True,
     help='Publish the created record.'
 )
+@click.option(
+    '--slug',
+    required=True,
+    help='Community slug of the record. Example: for the BIG-MAP community the slug is bigmap.',
+    type=click.STRING
+)
 def cmd_record_create(config_file,
                       metadata_file,
                       data_files,
-                      publish):
+                      publish,
+                      slug):
     """
     Create a record on a BIG-MAP Archive and optionally publish it.
     """
@@ -54,21 +71,29 @@ def cmd_record_create(config_file,
         client_config = ClientConfig.load_from_config_file(config_file_path)
         client = client_config.create_client()
 
+        # Get community id
+        community_id = client.get_community_id(slug)
+
         # Create draft from input metadata.yaml
         response = client.post_records(base_dir_path, metadata_file)
         record_id = response['id']
 
+        # Attribute draft to community
+        response = client.put_draft_community(record_id, community_id)
+
         # Upload data files and insert links in the draft's metadata
         filenames = get_data_files_in_upload_dir(base_dir_path, data_files)
-        click.echo('Files are being uploaded...')
-        client.upload_files(record_id, base_dir_path, data_files, filenames)
-        click.echo('Files were uploaded.')
+
+        if filenames != []:
+            click.echo('Files are being uploaded...')
+            client.upload_files(record_id, base_dir_path, data_files, filenames)
+            click.echo('Files were uploaded.')
         click.echo('A new entry was created.')
 
         # Publish draft depending on user's choice
         if publish:
             client.insert_publication_date(record_id)
-            client.post_publish(record_id)
+            client.post_review(record_id)
             click.echo('The entry was published.')
             click.echo(f'Please visit https://{client_config.domain_name}/records/{record_id}.')
             exit(0)
@@ -102,8 +127,8 @@ def cmd_record_create(config_file,
     type=click.Path(exists=False, file_okay=True, dir_okay=False),
 )
 def cmd_record_get(config_file,
-                            record_id,
-                            output_file):
+                   record_id,
+                   output_file):
     """
     Get the metadata of a published version of an entry on a BIG-MAP Archive and save it to a file.
     """
@@ -228,13 +253,20 @@ def cmd_record_get_all(config_file,
     is_flag=True,
     help='Publish the newly created version.'
 )
+@click.option(
+    '--slug',
+    required=True,
+    help='Community slug of the record. Example: for the BIG-MAP community the slug is bigmap.',
+    type=click.STRING
+)
 def cmd_record_update(config_file,
                       record_id,
                       update_only,
                       metadata_file,
                       data_files,
                       link_all_files_from_previous,
-                      publish):
+                      publish,
+                      slug):
     """
     Update a published version of an archive entry, or create a new version and optionally publish it. When updating a published version, only the metadata (title, list of authors, etc) can be modified.
     """

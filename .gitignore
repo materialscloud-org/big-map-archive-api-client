@@ -92,3 +92,6 @@ output/*
 
 # Secret environment variables
 *.env
+
+# Test code
+mycode

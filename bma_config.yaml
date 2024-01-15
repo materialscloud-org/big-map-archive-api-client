@@ -1,2 +1,3 @@
-domain_name: big-map-archive-demo.materialscloud.org # Other values: archive.big-map.eu, big-map-archive-demo-public.materialscloud.org
+domain_name: big-map-archive-demo.materialscloud.org # Other values: archive.big-map.eu, big-map-archive-demo-public.materialscloud.org, archive-nextgen.big-map.eu, 127.0.0.1
+port: 5000
 token: <replace>

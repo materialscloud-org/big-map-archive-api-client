@@ -1,25 +1,36 @@
-import click
-from pathlib import Path
 import os
-from datetime import datetime
+import warnings
+
+import click
 import requests
 
-from cli.root import cmd_root
-from cli.record import (cmd_record_create,
-                        cmd_record_update)
 from big_map_archive_api_client.client.client_config import ClientConfig
 from big_map_archive_api_client.utils import (export_to_json_file,
-                                              recreate_directory,
-                                              get_title_from_metadata_file)
-
+                                              get_title_from_metadata_file,
+                                              recreate_directory)
+from cli.record import cmd_record_create, cmd_record_update
+from cli.root import cmd_root
 from finales_api_client.client.client_config import FinalesClientConfig
+
+# from datetime import datetime
+# from pathlib import Path
 
 
 @cmd_root.group('finales-db')
-def cmd_finales_db():
+@click.option(
+    '--ignore',
+    '-W',
+    is_flag=True,
+    help='Ignore warnings.'
+)
+def cmd_finales_db(ignore):
     """
     Copy data from the database of a FINALES server to a BIG-MAP Archive.
     """
+    # ignore warnings
+    if ignore:
+        warnings.filterwarnings('ignore')
+
 
 @cmd_finales_db.command('back-up')
 @click.option(
@@ -57,6 +68,12 @@ def cmd_finales_db():
     is_flag=True,
     help='Do not publish the newly created version. This is discouraged in production. If you select this option, either publish or delete the newly created draft, e.g., via the GUI.'
 )
+@click.option(
+    '--slug',
+    required=True,
+    help='Community slug of the record. Example: for the BIG-MAP community the slug is bigmap.',
+    type=click.STRING
+)
 @click.pass_context
 def cmd_finales_db_copy(ctx,
                         bma_config_file,
@@ -64,7 +81,8 @@ def cmd_finales_db_copy(ctx,
                         record_id,
                         metadata_file,
                         link_all_files_from_previous,
-                        no_publish):
+                        no_publish,
+                        slug):
     """
     Back up the SQLite database of a FINALES server to a BIG-MAP Archive. This creates and publishes a new entry version, which provides links to data extracted from the database (capabilities, requests, and results for requests) and a copy of the whole database.
     """
@@ -123,36 +141,32 @@ def cmd_finales_db_copy(ctx,
 
         title = get_title_from_metadata_file(base_dir_path, metadata_file)
 
-        now = datetime.now()
-        additional_description = f' The back-up was performed on {now.strftime("%B %-d, %Y")} at {now.strftime("%H:%M")}.'
+        # now = datetime.now()
+        # additional_description = f' The back-up was performed on {now.strftime("%B %-d, %Y")} at {now.strftime("%H:%M")}.'
 
         publish = not no_publish
 
-        # Is a record id provided by the user?
+        # Create new record
         if record_id == '':
             # Check whether the archive user already owns a published record with that title
             record_ids = client.get_published_user_records_with_given_title(title)
 
-            if not record_ids:
-                # If there is no such record, it is assumed that setting the record id to its default value is intentional
-                # Create a new entry
-                ctx.invoke(cmd_record_create,
-                           config_file=bma_config_file,
-                           metadata_file=metadata_file,
-                           data_files=temp_dir_path,
-                           publish=publish)
-            else:
+            if record_ids:
                 # Ask for confirmation
                 click.echo(f'Found a published record with the title "{title}" on the BIG-MAP Archive.')
-                click.echo(f'To update the existing entry instead of creating a new one, execute the command with the option --record-id="{record_ids[0]}".')
-                click.confirm('Do you want to create a new entry?', abort=True)
+                click.echo('To create a new version of an existing record instead of creating a new record execute the command with the option --record-id.')
+                # record_ids[0] can be misleading if there is more than one record with the same title (not just a new version of a record but a distinct record with the same title)
+                # click.echo(f'To create a new version of the existing entry instead of creating a new record, execute the command with the option --record-id="{record_ids[0]}".')
+                click.confirm('Do you want to create a new record?', abort=True)
 
-                # Create a new entry
-                ctx.invoke(cmd_record_create,
-                           config_file=bma_config_file,
-                           metadata_file=metadata_file,
-                           data_files=temp_dir_path,
-                           publish=publish)
+            # Create a new record
+            ctx.invoke(cmd_record_create,
+                       config_file=bma_config_file,
+                       metadata_file=metadata_file,
+                       data_files=temp_dir_path,
+                       publish=publish,
+                       slug=slug)
+        # Create new version of record
         else:
             if not client.exists_and_is_published(record_id):
                 # The provided record id does not correspond to a published record on the BIG-MAP Archive owned by the user
@@ -162,31 +176,21 @@ def cmd_finales_db_copy(ctx,
             # Extract the title of the published record
             record_title = client.get_record_title(record_id)
 
-            if title == record_title:
-                # If the title in the metadata file matches the title of the published record, it is assumed that the value given to the record id is intentional
-                # Update the entry by creating a new version
-                ctx.invoke(cmd_record_update,
-                           config_file=bma_config_file,
-                           record_id=record_id,
-                           update_only=False,
-                           metadata_file=metadata_file,
-                           data_files=temp_dir_path,
-                           link_all_files_from_previous=link_all_files_from_previous,
-                           publish=publish)
-            else:
+            if title != record_title:
                 # Ask for confirmation
                 click.echo(f'The title "{title}" in the metadata file differs from the title of the published record "{record_title}".')
-                click.confirm(f'Do you want to continue with the new title?', abort=True)
+                click.confirm('Do you want to continue with the new title?', abort=True)
 
-                # Update the entry by creating a new version
-                ctx.invoke(cmd_record_update,
-                           config_file=bma_config_file,
-                           record_id=record_id,
-                           update_only=False,
-                           metadata_file=metadata_file,
-                           data_files=temp_dir_path,
-                           link_all_files_from_previous=link_all_files_from_previous,
-                           publish=publish)
+            # Update the record by creating a new version (update_only is False)
+            ctx.invoke(cmd_record_update,
+                       config_file=bma_config_file,
+                       record_id=record_id,
+                       update_only=False,
+                       metadata_file=metadata_file,
+                       data_files=temp_dir_path,
+                       link_all_files_from_previous=link_all_files_from_previous,
+                       publish=publish,
+                       slug=slug)
 
     except click.Abort:
         click.echo('Aborted.')

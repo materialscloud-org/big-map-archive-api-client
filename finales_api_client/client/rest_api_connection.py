@@ -1,13 +1,13 @@
 import requests
 
+
 class FinalesRestAPIConnection:
     """Internal auxiliary class that handles the base connection."""
-
     def __init__(self, ip_address, port):
         """
         Initializes internal fields
         """
-        self._base_url = f'http://{ip_address}:{port}'
+        self._base_url = f'https://{ip_address}:{port}'
 
     def post(self, resource_path, token=None, payload=None, content_type='application/json'):
         """
@@ -38,7 +38,6 @@ class FinalesRestAPIConnection:
         Sends a GET request and returns a response
         """
         url = self._base_url + resource_path + '?' + query_string
-
         kwargs = {}
 
         request_headers = {

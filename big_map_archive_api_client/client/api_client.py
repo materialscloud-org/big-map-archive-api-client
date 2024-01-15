@@ -1,12 +1,18 @@
 import json
 import os
 from datetime import date
-import requests
 
-from big_map_archive_api_client.client.rest_api_connection import RestAPIConnection
-from big_map_archive_api_client.utils import (generate_full_metadata,
-                                              change_metadata,
-                                              get_name_to_checksum_for_files_in_upload_dir)
+
+from big_map_archive_api_client.client.rest_api_connection import \
+    RestAPIConnection
+from big_map_archive_api_client.utils import (
+    change_metadata, generate_full_metadata,
+    get_name_to_checksum_for_files_in_upload_dir)
+
+
+class ArchiveAPIClientError(Exception):
+    """ArchiveAPIClient exceptions"""
+    pass
 
 
 class ArchiveAPIClient:
@@ -14,11 +20,11 @@ class ArchiveAPIClient:
     Class to interact with BMA's API
     """
 
-    def __init__(self, domain_name, token):
+    def __init__(self, domain_name, port, token):
         """
         Initialize internal variables
         """
-        self._connection = RestAPIConnection(domain_name)
+        self._connection = RestAPIConnection(domain_name, port)
         self._token = token
 
     def post_records(self, base_dir_path, metadata_file_path):
@@ -97,6 +103,57 @@ class ArchiveAPIClient:
         response.raise_for_status()
         return response.json()
 
+    def get_community_id(self, slug):
+        """
+        Get community id
+        Raises an HTTPError exception if the request fails
+        @param slug: slug of the community
+        @returns: community uuid for given slug
+        """
+        resource_path = f'/api/communities?q=slug:{slug}'
+        response = self._connection.get(resource_path, self._token)
+        response.raise_for_status()
+        result = response.json()
+        try:
+            assert result["hits"]["total"] == 1
+        except Exception:
+            raise ArchiveAPIClientError(f"There is no community or more than one community for slug '{slug}'")
+
+        return result["hits"]["hits"][0]["id"]
+
+    def put_draft_community(self, record_id, community_id):
+        """
+        Attribute draft to community - create a review in parent
+        Raises an HTTPError exception if the request fails
+        @param record_id: record id
+        @param community_id: community uuid
+        @returns: json of review
+        """
+        review = {
+            "receiver": {
+                "community": community_id
+            },
+            "type": "community-submission"
+        }
+        resource_path = f'/api/records/{record_id}/draft/review'
+        payload = json.dumps(review)
+        response = self._connection.put(resource_path, self._token, payload)
+        response.raise_for_status()
+        return response.json()
+
+    def post_review(self, record_id):
+        """
+        Submit review to community - create a request to include a record in the community
+        (that is equivalent to publish the record if the review policy is open)
+        Raises an HTTPError exception if the request fails
+        @param record_id: record id
+        @returns: json of request
+        """
+        resource_path = f'/api/records/{record_id}/draft/actions/submit-review'
+        response = self._connection.post(resource_path, self._token)
+        response.raise_for_status()
+        return response.json()
+
     def delete_draft(self, record_id):
         """
         Deletes a draft
@@ -118,6 +175,7 @@ class ArchiveAPIClient:
         """
         Publishes a draft to the archive (i.e., shares a record with all archive users)
         Raises an HTTPError exception if the request fails
+        Note: starting from invenioRDM v12 this api call is replaced by post_review
         """
         resource_path = f'/api/records/{record_id}/draft/actions/publish'
         response = self._connection.post(resource_path, self._token)
@@ -270,7 +328,7 @@ class ArchiveAPIClient:
 
             # How many files in the upload directory with the same name but a different content are there?
             same_name_different_content_files = [f for f in files_in_upload_dir
-                                                                    if (f['name'] == name and f['checksum'] != checksum)]
+                                                 if (f['name'] == name and f['checksum'] != checksum)]
 
             if len(same_name_different_content_files) == 1:
                 filenames.append(name)
@@ -313,7 +371,6 @@ class ArchiveAPIClient:
         response.raise_for_status()
         return response.json()
 
-
     def get_latest_versions(self):
         """
         Gets the ids and the statuses of the latest version of all entries belonging to a user
@@ -324,7 +381,6 @@ class ArchiveAPIClient:
         latest_versions = response['hits']['hits']
         latest_versions = [{'id': v['id'], 'is_published': v['is_published']} for v in latest_versions]
         return latest_versions
-
 
     def get_published_user_records_with_given_title(self, title):
         """
@@ -337,7 +393,6 @@ class ArchiveAPIClient:
         record_ids = [r['id'] for r in user_records if (r['is_published'] and r['metadata']['title'] == title)]
 
         return record_ids
-
 
     def exists_and_is_published(self, record_id):
         """
@@ -352,7 +407,6 @@ class ArchiveAPIClient:
 
         return True if record_id in record_ids else False
 
-
     def get_record_title(self, record_id):
         """
         Returns the title of a published record
@@ -361,8 +415,3 @@ class ArchiveAPIClient:
         title = response['metadata']['title']
 
         return title
-
-
-
-
-

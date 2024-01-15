@@ -1,4 +1,5 @@
-from finales_api_client.client.rest_api_connection import FinalesRestAPIConnection
+from finales_api_client.client.rest_api_connection import \
+    FinalesRestAPIConnection
 
 
 class FinalesAPIClient:
@@ -23,9 +24,9 @@ class FinalesAPIClient:
         resource_path = '/user_management/authenticate'
 
         payload = {
-                'username': self._username,
-                'password': self._password,
-                'grant_type': 'password'}
+            'username': self._username,
+            'password': self._password
+        }
 
         response = self._connection.post(resource_path=resource_path,
                                          payload=payload,
@@ -39,7 +40,7 @@ class FinalesAPIClient:
         where 'quantity' is the physical property to be evaluated and 'method' is the approach used to evaluate the property
         Raises an HTTPError exception if the request fails
         """
-        resource_path = '/capabilities'
+        resource_path = '/capabilities/'
         response = self._connection.get(resource_path, token, query_string='currently_available=false')
         response.raise_for_status()
         return response.json()
@@ -49,7 +50,7 @@ class FinalesAPIClient:
         Gets all requests stored in the FINALES database
         Raises an HTTPError exception if the request fails
         """
-        resource_path = '/all_requests'
+        resource_path = '/all_requests/'
         response = self._connection.get(resource_path, token)
         response.raise_for_status()
         return response.json()
@@ -64,7 +65,7 @@ class FinalesAPIClient:
         an evaluation of the specific property using the specific method
         Raises an HTTPError exception if the request fails
         """
-        resource_path = '/results_requested'
+        resource_path = '/results_requested/'
         response = self._connection.get(resource_path, token)
         response.raise_for_status()
         return response.json()

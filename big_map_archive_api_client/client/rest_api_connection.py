@@ -3,11 +3,15 @@ import requests
 class RestAPIConnection:
     """Internal auxiliary class that handles the base connection."""
 
-    def __init__(self, domain_name):
+    def __init__(self, domain_name, port):
         """
         Initializes internal fields
         """
-        self._base_url = f'https://{domain_name}:{443}'
+        self.domain_name = domain_name
+        if domain_name=='127.0.0.1':
+            self._base_url = f'https://{domain_name}:{port}'
+        else:
+            self._base_url = f'https://{domain_name}'
 
     def get(self, resource_path, token):
         """
@@ -24,6 +28,8 @@ class RestAPIConnection:
         }
         kwargs['headers'] = request_headers
         kwargs['verify'] = True
+        if self.domain_name == "127.0.0.1":
+            kwargs['verify'] = False
 
         response = requests.get(url, **kwargs)
         return response
@@ -46,6 +52,8 @@ class RestAPIConnection:
         }
         kwargs['headers'] = request_headers
         kwargs['verify'] = True
+        if self.domain_name == "127.0.0.1":
+            kwargs['verify'] = False
 
         response = requests.post(url, **kwargs)
         return response
@@ -68,6 +76,8 @@ class RestAPIConnection:
         }
         kwargs['headers'] = request_headers
         kwargs['verify'] = True
+        if self.domain_name == "127.0.0.1":
+            kwargs['verify'] = False
 
         response = requests.put(url, **kwargs)
         return response
@@ -87,6 +97,8 @@ class RestAPIConnection:
         }
         kwargs['headers'] = request_headers
         kwargs['verify'] = True
+        if self.domain_name == "127.0.0.1":
+            kwargs['verify'] = False
 
         response = requests.delete(url, **kwargs)
         return response

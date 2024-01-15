@@ -1,11 +1,10 @@
+import datetime
+import hashlib
 import json
 import os
-import hashlib
-import datetime
 import shutil
 
 import yaml
-
 
 
 def generate_full_metadata(base_dir_path, metadata_file_path):
@@ -14,9 +13,14 @@ def generate_full_metadata(base_dir_path, metadata_file_path):
     """
     full_metadata = {
         'access': {
-            'files': 'public',
-            'record': 'public',
-            'status': 'open'
+            'files': 'restricted',
+            'record': 'restricted',
+            "embargo": {
+                "until": None,
+                "active": False,
+                "reason": None
+            },
+            'status': 'restricted'
         },
         'files': {
             'enabled': True
@@ -157,7 +161,7 @@ def insert_subjects(full_metadata, partial_metadata):
     """
     Inserts subjects (i.e., keywords) that were extracted from a 'partial' metadata into a 'full' metadata
     """
-    full_metadata ['metadata']['subjects'] = [{'subject': keyword} for keyword in partial_metadata['keywords']]
+    full_metadata['metadata']['subjects'] = [{'subject': keyword} for keyword in partial_metadata['keywords']]
 
     return full_metadata
 
@@ -234,7 +238,6 @@ def get_name_to_checksum_for_files_in_upload_dir(base_dir_path, upload_dir_path)
     Gets the names and md5 hashes of all files in the upload folder
     """
     upload_dir_path = os.path.join(base_dir_path, upload_dir_path)
-
     filenames = [
         f for f in os.listdir(upload_dir_path)
         if os.path.isfile(os.path.join(upload_dir_path, f))
@@ -281,6 +284,7 @@ def get_title_from_metadata_file(base_dir_path, metadata_file_path):
 
     return title
 
+
 def create_directory(base_dir_path, dir_path):
     """
     Creates a folder if it does not exist
@@ -289,6 +293,7 @@ def create_directory(base_dir_path, dir_path):
 
     if not os.path.exists(dir_path):
         os.makedirs(dir_path)
+
 
 def recreate_directory(base_dir_path, dir_path):
     """
